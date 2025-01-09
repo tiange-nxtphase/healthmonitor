@@ -1,0 +1,5 @@
+Flask
+requests
+flask_cors
+orq_ai_sdk
+flask_socketio

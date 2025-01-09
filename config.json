@@ -1,0 +1,9 @@
+{
+    "orq": {
+        "api_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrc3BhY2VJZCI6ImFkYTNkZjllLWY1YTUtNDE0Ni1hNTUzLWM3OTQxNmYyY2EwNCIsImlhdCI6MTcwMjU1NDE3MzA1MH0._z9NP84cErjyXsmARYmMpW685e8dOl7L-NsLZgw6Bo8",
+        "deployment": "healthmonitor"
+    },
+    "openai": {
+        "api_key": "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"
+    }
+}

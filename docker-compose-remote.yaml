@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  nextapp:
+    container_name: nextapp
+    image: healthmonitor.azurecr.io/nextapp:1.0.0  # ACR or Docker Hub image path
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+    depends_on:
+      - flaskapp
+
+  flaskapp:
+    container_name: flaskapp
+    image: healthmonitor.azurecr.io/flaskapp:1.0.0  # ACR or Docker Hub image path
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - '5000:5000'
+    restart: always
