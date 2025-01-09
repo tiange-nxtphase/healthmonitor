@@ -39,9 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.
-
-# keys
-config.json
-
-# python env
-/env/
