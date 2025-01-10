@@ -1,25 +1,35 @@
 import json
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
-import requests
+from azure.storage.blob import BlobClient
 from orq_ai_sdk import OrqAI
-import uuid
-from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
 
-JSON_FILE = 'readings.json'
+READINGS_BLOB_SAS_URL = "https://healthmonitorstatic.blob.core.windows.net/data/readings.json?sp=racwd&st=2025-01-10T02:03:08Z&se=2025-05-10T09:03:08Z&sv=2022-11-02&sr=b&sig=S%2BDa06Fr7EiacM1MFWj5RlzHYqFTMbiR%2FTg0TZ3Eknw%3D"
+CONVERSATIONS_BLOB_SAS_URL = "https://healthmonitorstatic.blob.core.windows.net/data/conversations.json?sp=racwdy&st=2025-01-10T02:01:34Z&se=2025-05-10T09:01:34Z&sv=2022-11-02&sr=b&sig=QOMG8gRV0rqvzkHFOVYBrP5Iu%2BOCXRQZMRkp98ZvwAk%3D"
+
+def read_blob(blob_sas_url):
+    blob_client = BlobClient.from_blob_url(blob_sas_url)
+    if blob_client.exists():
+        blob_data = blob_client.download_blob().readall()
+        return json.loads(blob_data)
+    return {} if "readings" in blob_sas_url else []
+
+def write_blob(blob_sas_url, data):
+    blob_client = BlobClient.from_blob_url(blob_sas_url)
+    blob_client.upload_blob(json.dumps(data), overwrite=True)
 
 def read_data():
-    try:
-        with open(JSON_FILE, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
+    return read_blob(READINGS_BLOB_SAS_URL)
+
+def read_conversations():
+    return read_blob(CONVERSATIONS_BLOB_SAS_URL)
+
+def save_conversations(conversations):
+    write_blob(CONVERSATIONS_BLOB_SAS_URL, conversations)
 
 config_cache = None
 
@@ -51,26 +61,20 @@ def add_reading():
             'ldl_cholesterol': new_reading['ldl_cholesterol'],
             'triglycerides': new_reading['triglycerides'],
             'hdl_cholesterol': new_reading['hdl_cholesterol'],
-            'ALT_liver_enzymes': new_reading['ALT_liver_enzymes']
+            'ALT_liver_enzymes': new_reading['ALT_liver_enzymes'],
+            'triglyceride_hdl_ratio': new_reading['triglyceride_hdl_ratio']
         }
 
-        try:
-            with open(JSON_FILE, 'r') as file:
-                data = json.load(file)
-        except FileNotFoundError:
-            data = {}
-
+        data = read_data()
         if date in data:
             data[date].update(reading_values)
         else:
             data[date] = reading_values
 
-        with open(JSON_FILE, 'w') as file:
-            json.dump(data, file)
-
-        socketio.emit('new_reading', data)
-
-        return jsonify({'status': 'success', 'message': 'Reading added successfully'})
+        write_blob(READINGS_BLOB_SAS_URL, data)
+        
+        # Removed the socket emission part
+        return jsonify({'status': 'success', 'message': 'Reading added successfully'}), 200
     
     except Exception as e:
          print(e)
@@ -79,10 +83,8 @@ def add_reading():
 @app.route('/api/clearAllReadings', methods=['DELETE'])
 def clear_all_readings():
     try:
-        with open(JSON_FILE, 'w') as file:
-            json.dump({}, file)
-        with open('conversations.json', 'w') as file:
-            json.dump([], file)  # Write an empty list to clear the conversations
+        write_blob(READINGS_BLOB_SAS_URL, {})
+        write_blob(CONVERSATIONS_BLOB_SAS_URL, [])
         return jsonify({'status': 'success', 'message': 'All readings cleared'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -90,11 +92,8 @@ def clear_all_readings():
 @app.route('/api/clearchat', methods=['POST'])
 def clear_chat():
     try:
-        with open('conversations.json', 'w') as file:
-            json.dump([], file)  # Write an empty list to clear the conversations
+        write_blob(CONVERSATIONS_BLOB_SAS_URL, [])
         return jsonify({'message': 'Chat history cleared successfully'}), 200
-    except FileNotFoundError:
-        return jsonify({'error': 'Conversations file not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -116,17 +115,6 @@ def generate_insights():
             return jsonify({"response_text": "No data found."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-def read_conversations():
-    try:
-        with open('conversations.json', 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return []
-
-def save_conversations(conversations):
-    with open('conversations.json', 'w') as file:
-        json.dump(conversations, file)
 
 @app.route('/api/fetchhistory', methods=['GET'])
 def get_conversations():
@@ -220,13 +208,5 @@ def chat():
         print(f"Error: {str(e)}")
         return jsonify({"error": "An error occurred while processing your request"}), 500
 
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000)

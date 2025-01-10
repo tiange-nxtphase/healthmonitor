@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from 'react'
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceArea } from "recharts"
@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Scale, ZoomOut } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { getReadings } from '../utils/storage'
-import { Socket } from 'socket.io-client'
 
 function getStatus(value: number) {
   if (value < 5.7) return { label: "NORMAL", color: "bg-green-500 hover:bg-green-500" }
@@ -28,10 +27,10 @@ interface ChartData {
 }
 
 interface ChartProps {
-  socket: Socket | null;
+  triggerUpdate: boolean;  // Trigger to refetch data after new reading
 }
 
-export function Chart({ socket }: ChartProps) {
+export function Chart({ triggerUpdate }: ChartProps) {
   const [sortedData, setSortedData] = useState<ChartData[]>([])
   const [status, setStatus] = useState({ label: "NO DATA", color: "bg-gray-500 hover:bg-gray-500" })
   const [left, setLeft] = useState<string | number>('dataMin')
@@ -64,17 +63,7 @@ export function Chart({ socket }: ChartProps) {
     }
 
     fetchData()
-
-    if (socket) {
-      socket.on('new_reading', fetchData)
-    }
-
-    return () => {
-      if (socket) {
-        socket.off('new_reading', fetchData)
-      }
-    }
-  }, [socket])
+  }, [triggerUpdate])  // Refetch data when newReadingTrigger changes
 
   const zoom = () => {
     if (refAreaLeft === refAreaRight || refAreaRight === '') {

@@ -1,14 +1,9 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
-import { Socket } from 'socket.io-client';
-
-interface BloodTestChatbotProps {
-  socket: Socket | null;
-}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -17,11 +12,16 @@ interface ChatMessage {
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-export function BloodTestChatbot({ socket }: BloodTestChatbotProps) {
+interface BloodTestChatbotProps {
+  triggerUpdate: boolean;  // Function to trigger updates across components
+}
+
+export function BloodTestChatbot({ triggerUpdate }: BloodTestChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
+  // Fetch initial chat when component loads
   useEffect(() => {
     async function initializeChat() {
       try {
@@ -42,17 +42,7 @@ export function BloodTestChatbot({ socket }: BloodTestChatbotProps) {
     }
 
     initializeChat();
-
-    if (socket) {
-      socket.on('new_reading', initializeChat);
-    }
-
-    return () => {
-      if (socket) {
-        socket.off('new_reading', initializeChat);
-      }
-    };
-  }, [socket]);
+  }, [triggerUpdate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
@@ -85,6 +75,7 @@ export function BloodTestChatbot({ socket }: BloodTestChatbotProps) {
       const data = await response.json();
       const assistantMessage: ChatMessage = { role: 'assistant', content: data.message };
       setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+
     } catch (error) {
       console.error('Error:', error);
       const errorMessage: ChatMessage = { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' };
@@ -114,7 +105,7 @@ export function BloodTestChatbot({ socket }: BloodTestChatbotProps) {
   };
 
   return (
-    <Card className="w-full mt-8">
+    <Card className="w-full mt-0">
       <CardHeader>
         <h3 className="font-semibold text-lg">Chatbot</h3>
       </CardHeader>
@@ -162,4 +153,3 @@ export function BloodTestChatbot({ socket }: BloodTestChatbotProps) {
     </Card>
   );
 }
-
